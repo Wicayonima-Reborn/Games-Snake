@@ -1,5 +1,6 @@
 #pragma once
 #include <deque>
+#include <queue>
 
 struct Vec2 {
     int x;
@@ -21,9 +22,9 @@ public:
     Snake();
 
     void Reset();
-    Vec2 NextHead() const;
-
+    Vec2 NextHead(Direction useDir) const;
     void MoveTo(const Vec2& newHead, bool grow);
 
-    bool HitSelf() const;
+    bool WillHitSelf(const Vec2& next, bool grow) const;
+    bool IsOpposite(Direction a, Direction b) const;
 };

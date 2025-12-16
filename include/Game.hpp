@@ -2,6 +2,7 @@
 #include "Snake.hpp"
 #include "Food.hpp"
 #include "Mode.hpp"
+#include <queue>
 
 class Game {
 public:
@@ -16,6 +17,8 @@ private:
 
     Snake snake;
     Food food;
+
+    std::queue<Direction> inputQueue; // 🔥 INPUT QUEUE
 
     GameMode mode;
     bool paused;

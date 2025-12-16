@@ -12,6 +12,8 @@ Game::Game() {
 
 void Game::Reset() {
     snake.Reset();
+    while (!inputQueue.empty()) inputQueue.pop();
+
     food.Respawn(snake, GRID_W, GRID_H);
     paused = false;
     gameOver = false;
@@ -22,10 +24,16 @@ void Game::Reset() {
 }
 
 void Game::HandleInput() {
-    if (IsKeyPressed(KEY_UP)    && snake.dir != Direction::DOWN)  snake.dir = Direction::UP;
-    if (IsKeyPressed(KEY_DOWN)  && snake.dir != Direction::UP)    snake.dir = Direction::DOWN;
-    if (IsKeyPressed(KEY_LEFT)  && snake.dir != Direction::RIGHT) snake.dir = Direction::LEFT;
-    if (IsKeyPressed(KEY_RIGHT) && snake.dir != Direction::LEFT)  snake.dir = Direction::RIGHT;
+    auto pushDir = [&](Direction d) {
+        if (inputQueue.size() < 2) {
+            inputQueue.push(d);
+        }
+    };
+
+    if (IsKeyPressed(KEY_UP))    pushDir(Direction::UP);
+    if (IsKeyPressed(KEY_DOWN))  pushDir(Direction::DOWN);
+    if (IsKeyPressed(KEY_LEFT))  pushDir(Direction::LEFT);
+    if (IsKeyPressed(KEY_RIGHT)) pushDir(Direction::RIGHT);
 
     if (IsKeyPressed(KEY_P)) paused = !paused;
     if (IsKeyPressed(KEY_R)) Reset();
@@ -45,9 +53,19 @@ void Game::Update() {
     if (timer < delay) return;
     timer = 0.0f;
 
-    Vec2 next = snake.NextHead();
+    // 🔥 AMBIL SATU INPUT DARI QUEUE
+    if (!inputQueue.empty()) {
+        Direction nextDir = inputQueue.front();
+        inputQueue.pop();
 
-    // ===== WALL LOGIC (FIXED) =====
+        if (!snake.IsOpposite(snake.dir, nextDir)) {
+            snake.dir = nextDir;
+        }
+    }
+
+    Vec2 next = snake.NextHead(snake.dir);
+
+    // ===== WALL LOGIC =====
     if (IsWallDeadly(mode)) {
         if (next.x < 0 || next.x >= GRID_W ||
             next.y < 0 || next.y >= GRID_H) {
@@ -55,7 +73,6 @@ void Game::Update() {
             return;
         }
     } else {
-        // NO_WALL → wrap
         if (next.x < 0) next.x = GRID_W - 1;
         if (next.x >= GRID_W) next.x = 0;
         if (next.y < 0) next.y = GRID_H - 1;
@@ -63,12 +80,13 @@ void Game::Update() {
     }
 
     bool grow = (next == food.pos);
-    snake.MoveTo(next, grow);
 
-    if (snake.HitSelf()) {
+    if (snake.WillHitSelf(next, grow)) {
         gameOver = true;
         return;
     }
+
+    snake.MoveTo(next, grow);
 
     if (grow) {
         score += 10;
@@ -80,15 +98,28 @@ void Game::Render() {
     BeginDrawing();
     ClearBackground(BLACK);
 
-    for (auto& s : snake.body) {
-        DrawRectangle(s.x * CELL, s.y * CELL, CELL, CELL, GREEN);
+    for (size_t i = 0; i < snake.body.size(); i++) {
+        Color color = (i == 0) ? LIME : GREEN;
+        DrawRectangle(
+            snake.body[i].x * CELL,
+            snake.body[i].y * CELL,
+            CELL,
+            CELL,
+            color
+        );
     }
 
-    DrawRectangle(food.pos.x * CELL, food.pos.y * CELL, CELL, CELL, RED);
+    DrawRectangle(
+        food.pos.x * CELL,
+        food.pos.y * CELL,
+        CELL,
+        CELL,
+        RED
+    );
 
     DrawText(TextFormat("Score: %d", score), 10, GRID_H * CELL + 10, 20, RAYWHITE);
     DrawText(TextFormat("Mode: %s", GetModeName(mode)), 10, GRID_H * CELL + 35, 18, GRAY);
-    DrawText("1:Classic  2:Speed  3:NoWall  Q:Quit", 10, GRID_H * CELL + 55, 16, DARKGRAY);
+    DrawText("Input: QUEUED (2-step)", 10, GRID_H * CELL + 55, 16, DARKGRAY);
 
     if (paused)
         DrawText("PAUSED", 180, 200, 40, YELLOW);
