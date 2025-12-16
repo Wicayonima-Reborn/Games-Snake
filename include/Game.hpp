@@ -2,6 +2,7 @@
 #include "Snake.hpp"
 #include "Food.hpp"
 #include "Mode.hpp"
+#include "Scene.hpp"
 #include <queue>
 
 class Game {
@@ -13,16 +14,20 @@ private:
     void HandleInput();
     void Update();
     void Render();
-    void Reset();
+
+    void ResetGame();
+    void RenderMenu();
+    void RenderGame();
+    void RenderGameOver();
 
     Snake snake;
     Food food;
+    std::queue<Direction> inputQueue;
 
-    std::queue<Direction> inputQueue; // 🔥 INPUT QUEUE
-
+    Scene scene;
     GameMode mode;
+
     bool paused;
-    bool gameOver;
     bool running;
 
     int score;
