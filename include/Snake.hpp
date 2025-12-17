@@ -1,14 +1,6 @@
 #pragma once
 #include <deque>
-#include <queue>
-
-struct Vec2 {
-    int x;
-    int y;
-    bool operator==(const Vec2& o) const {
-        return x == o.x && y == o.y;
-    }
-};
+#include "Vec2.hpp"
 
 enum class Direction {
     UP, DOWN, LEFT, RIGHT
@@ -20,10 +12,10 @@ public:
     Direction dir;
 
     Snake();
-
     void Reset();
-    Vec2 NextHead(Direction useDir) const;
-    void MoveTo(const Vec2& newHead, bool grow);
+
+    Vec2 NextHead(Direction d) const;
+    void MoveTo(const Vec2& next, bool grow);
 
     bool WillHitSelf(const Vec2& next, bool grow) const;
     bool IsOpposite(Direction a, Direction b) const;

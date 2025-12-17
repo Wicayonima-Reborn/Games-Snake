@@ -1,9 +1,10 @@
 #pragma once
+#include <queue>
 #include "Snake.hpp"
 #include "Food.hpp"
 #include "Mode.hpp"
 #include "Scene.hpp"
-#include <queue>
+#include "raylib.h"
 
 class Game {
 public:
@@ -33,4 +34,8 @@ private:
     int score;
     float timer;
     float delay;
+
+    Sound sfxEat;
+    Sound sfxGameOver;
+    Sound sfxSelect;
 };

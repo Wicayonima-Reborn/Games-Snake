@@ -1,11 +1,22 @@
 #include "Game.hpp"
-#include "raylib.h"
 
 static const int CELL = 25;
-static const int GRID_W = 20;
-static const int GRID_H = 20;
+static const int GRID = 20;
+
+static float GetSpeedByScore(GameMode mode, int score) {
+    float base = GetBaseSpeed(mode);
+    float speed = base - (score / 50) * 0.01f;
+    if (speed < 0.06f) speed = 0.06f;
+    return speed;
+}
 
 Game::Game() {
+    InitAudioDevice();
+
+    sfxEat      = LoadSound("assets/sfx/eat.wav");
+    sfxGameOver = LoadSound("assets/sfx/GameOver.wav");
+    sfxSelect   = LoadSound("assets/sfx/select.wav");
+
     scene = Scene::MENU;
     mode = GameMode::CLASSIC;
     running = true;
@@ -14,34 +25,33 @@ Game::Game() {
 void Game::ResetGame() {
     snake.Reset();
     while (!inputQueue.empty()) inputQueue.pop();
-    food.Respawn(snake, GRID_W, GRID_H);
+    food.Respawn(snake, GRID, GRID);
 
-    paused = false;
     score = 0;
-    timer = 0.0f;
+    paused = false;
+    timer = 0;
     delay = GetBaseSpeed(mode);
     scene = Scene::GAME;
 }
 
 void Game::HandleInput() {
     if (scene == Scene::MENU) {
-        if (IsKeyPressed(KEY_ONE)) { mode = GameMode::CLASSIC; ResetGame(); }
-        if (IsKeyPressed(KEY_TWO)) { mode = GameMode::SPEED;   ResetGame(); }
-        if (IsKeyPressed(KEY_THREE)) { mode = GameMode::NO_WALL; ResetGame(); }
+        if (IsKeyPressed(KEY_ONE))  { PlaySound(sfxSelect); mode = GameMode::CLASSIC; ResetGame(); }
+        if (IsKeyPressed(KEY_TWO))  { PlaySound(sfxSelect); mode = GameMode::SPEED;   ResetGame(); }
+        if (IsKeyPressed(KEY_THREE)){ PlaySound(sfxSelect); mode = GameMode::NO_WALL; ResetGame(); }
         if (IsKeyPressed(KEY_Q) || IsKeyPressed(KEY_ESCAPE)) running = false;
         return;
     }
 
     if (scene == Scene::GAME) {
-        auto pushDir = [&](Direction d) {
-            if (inputQueue.size() < 2)
-                inputQueue.push(d);
+        auto push = [&](Direction d){
+            if (inputQueue.size() < 2) inputQueue.push(d);
         };
 
-        if (IsKeyPressed(KEY_UP))    pushDir(Direction::UP);
-        if (IsKeyPressed(KEY_DOWN))  pushDir(Direction::DOWN);
-        if (IsKeyPressed(KEY_LEFT))  pushDir(Direction::LEFT);
-        if (IsKeyPressed(KEY_RIGHT)) pushDir(Direction::RIGHT);
+        if (IsKeyPressed(KEY_UP)) push(Direction::UP);
+        if (IsKeyPressed(KEY_DOWN)) push(Direction::DOWN);
+        if (IsKeyPressed(KEY_LEFT)) push(Direction::LEFT);
+        if (IsKeyPressed(KEY_RIGHT)) push(Direction::RIGHT);
 
         if (IsKeyPressed(KEY_P)) paused = !paused;
         if (IsKeyPressed(KEY_Q) || IsKeyPressed(KEY_ESCAPE)) running = false;
@@ -50,7 +60,6 @@ void Game::HandleInput() {
     if (scene == Scene::GAME_OVER) {
         if (IsKeyPressed(KEY_R)) ResetGame();
         if (IsKeyPressed(KEY_M)) scene = Scene::MENU;
-        if (IsKeyPressed(KEY_Q) || IsKeyPressed(KEY_ESCAPE)) running = false;
     }
 }
 
@@ -59,7 +68,7 @@ void Game::Update() {
 
     timer += GetFrameTime();
     if (timer < delay) return;
-    timer = 0.0f;
+    timer = 0;
 
     if (!inputQueue.empty()) {
         Direction d = inputQueue.front();
@@ -71,21 +80,22 @@ void Game::Update() {
     Vec2 next = snake.NextHead(snake.dir);
 
     if (IsWallDeadly(mode)) {
-        if (next.x < 0 || next.x >= GRID_W ||
-            next.y < 0 || next.y >= GRID_H) {
+        if (next.x < 0 || next.x >= GRID || next.y < 0 || next.y >= GRID) {
+            PlaySound(sfxGameOver);
             scene = Scene::GAME_OVER;
             return;
         }
     } else {
-        if (next.x < 0) next.x = GRID_W - 1;
-        if (next.x >= GRID_W) next.x = 0;
-        if (next.y < 0) next.y = GRID_H - 1;
-        if (next.y >= GRID_H) next.y = 0;
+        if (next.x < 0) next.x = GRID - 1;
+        if (next.x >= GRID) next.x = 0;
+        if (next.y < 0) next.y = GRID - 1;
+        if (next.y >= GRID) next.y = 0;
     }
 
     bool grow = (next == food.pos);
 
     if (snake.WillHitSelf(next, grow)) {
+        PlaySound(sfxGameOver);
         scene = Scene::GAME_OVER;
         return;
     }
@@ -93,46 +103,42 @@ void Game::Update() {
     snake.MoveTo(next, grow);
 
     if (grow) {
+        PlaySound(sfxEat);
         score += 10;
-        food.Respawn(snake, GRID_W, GRID_H);
+        delay = GetSpeedByScore(mode, score);
+        food.Respawn(snake, GRID, GRID);
     }
 }
 
 void Game::RenderMenu() {
-    DrawText("SNAKE GAME", 170, 100, 40, LIME);
-    DrawText("1 - Classic", 200, 180, 20, RAYWHITE);
-    DrawText("2 - Speed",   200, 210, 20, RAYWHITE);
-    DrawText("3 - No Wall", 200, 240, 20, RAYWHITE);
-    DrawText("Q / ESC - Quit", 180, 300, 18, GRAY);
+    DrawText("SNAKE GAME", 170, 120, 40, LIME);
+    DrawText("1 - Classic", 200, 200, 20, RAYWHITE);
+    DrawText("2 - Speed", 200, 230, 20, RAYWHITE);
+    DrawText("3 - No Wall", 200, 260, 20, RAYWHITE);
 }
 
 void Game::RenderGame() {
     for (size_t i = 0; i < snake.body.size(); i++) {
-        Color c = (i == 0) ? LIME : GREEN;
         DrawRectangle(
             snake.body[i].x * CELL,
             snake.body[i].y * CELL,
-            CELL, CELL, c
+            CELL, CELL,
+            i == 0 ? LIME : GREEN
         );
     }
 
-    DrawRectangle(
-        food.pos.x * CELL,
-        food.pos.y * CELL,
-        CELL, CELL, RED
-    );
-
-    DrawText(TextFormat("Score: %d", score), 10, GRID_H * CELL + 10, 20, RAYWHITE);
+    DrawRectangle(food.pos.x * CELL, food.pos.y * CELL, CELL, CELL, RED);
+    DrawText(TextFormat("Score: %d", score), 10, GRID * CELL + 10, 20, RAYWHITE);
+    DrawText(GetModeName(mode), 10, GRID * CELL + 35, 18, GRAY);
 
     if (paused)
         DrawText("PAUSED", 200, 200, 40, YELLOW);
 }
 
 void Game::RenderGameOver() {
-    DrawText("GAME OVER", 180, 160, 40, RED);
-    DrawText(TextFormat("Score: %d", score), 210, 210, 20, RAYWHITE);
-    DrawText("R - Restart", 200, 250, 18, GRAY);
-    DrawText("M - Menu",    200, 275, 18, GRAY);
+    DrawText("GAME OVER", 180, 180, 40, RED);
+    DrawText("R - Restart", 200, 230, 18, GRAY);
+    DrawText("M - Menu", 200, 255, 18, GRAY);
 }
 
 void Game::Render() {
@@ -141,7 +147,7 @@ void Game::Render() {
 
     if (scene == Scene::MENU) RenderMenu();
     else if (scene == Scene::GAME) RenderGame();
-    else if (scene == Scene::GAME_OVER) RenderGameOver();
+    else RenderGameOver();
 
     EndDrawing();
 }
@@ -152,4 +158,9 @@ void Game::Run() {
         Update();
         Render();
     }
+
+    UnloadSound(sfxEat);
+    UnloadSound(sfxGameOver);
+    UnloadSound(sfxSelect);
+    CloseAudioDevice();
 }

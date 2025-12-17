@@ -1,13 +1,17 @@
 #include "Food.hpp"
 #include "raylib.h"
-#include <algorithm>
 
-void Food::Respawn(const Snake& snake, int width, int height) {
+void Food::Respawn(const Snake& snake, int w, int h) {
+    bool valid;
     do {
-        pos = {
-            GetRandomValue(0, width - 1),
-            GetRandomValue(0, height - 1)
-        };
-    } while (std::find(snake.body.begin(), snake.body.end(), pos)
-             != snake.body.end());
+        valid = true;
+        pos.x = GetRandomValue(0, w - 1);
+        pos.y = GetRandomValue(0, h - 1);
+        for (auto& s : snake.body) {
+            if (s == pos) {
+                valid = false;
+                break;
+            }
+        }
+    } while (!valid);
 }

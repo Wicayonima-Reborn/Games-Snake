@@ -17,26 +17,24 @@ bool Snake::IsOpposite(Direction a, Direction b) const {
            (a == Direction::RIGHT && b == Direction::LEFT);
 }
 
-Vec2 Snake::NextHead(Direction useDir) const {
+Vec2 Snake::NextHead(Direction d) const {
     Vec2 h = body.front();
-    if (useDir == Direction::UP)    h.y--;
-    if (useDir == Direction::DOWN)  h.y++;
-    if (useDir == Direction::LEFT)  h.x--;
-    if (useDir == Direction::RIGHT) h.x++;
+    if (d == Direction::UP)    h.y--;
+    if (d == Direction::DOWN)  h.y++;
+    if (d == Direction::LEFT)  h.x--;
+    if (d == Direction::RIGHT) h.x++;
     return h;
 }
 
-void Snake::MoveTo(const Vec2& newHead, bool grow) {
-    body.push_front(newHead);
-    if (!grow)
-        body.pop_back();
+void Snake::MoveTo(const Vec2& next, bool grow) {
+    body.push_front(next);
+    if (!grow) body.pop_back();
 }
 
 bool Snake::WillHitSelf(const Vec2& next, bool grow) const {
     size_t limit = grow ? body.size() : body.size() - 1;
     for (size_t i = 0; i < limit; i++) {
-        if (body[i] == next)
-            return true;
+        if (body[i] == next) return true;
     }
     return false;
 }
